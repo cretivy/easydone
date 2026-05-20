@@ -91,7 +91,7 @@ export default function ProfilePage() {
       await Promise.all([
         updateProfile(user, { displayName: name, photoURL: newPhotoURL }),
         updateDoc(doc(db, "users", user.uid), updatePayload),
-        profileData?.role === 'usta' ? updateDoc(doc(db, "master_profiles", user.uid), updatePayload) : Promise.resolve()
+        userData?.role === 'master' ? updateDoc(doc(db, "master_profiles", user.uid), updatePayload) : Promise.resolve()
       ]);
 
       await refreshUserData();
@@ -191,7 +191,7 @@ export default function ProfilePage() {
                    </div>
                    <div>
                      <p className="text-xs font-bold text-slate-400 uppercase tracking-widest">Rol</p>
-                     <p className="font-bold text-slate-700 uppercase">{profileData?.role === 'usta' ? 'Mutaxassis (Usta)' : 'Mijoz'}</p>
+                     <p className="font-bold text-slate-700 uppercase">{userData?.role === 'master' ? 'Mutaxassis (Usta)' : 'Mijoz'}</p>
                    </div>
                 </div>
                 <div className="flex items-center gap-4 p-6 bg-slate-50 rounded-3xl">
@@ -218,9 +218,11 @@ export default function ProfilePage() {
                     )}
                     <button 
                       onClick={handleSave}
-                      className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-lg hover:bg-emerald-600 shadow-xl shadow-emerald-100"
+                      disabled={saving}
+                      className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-lg hover:bg-emerald-600 shadow-xl shadow-emerald-100 flex items-center justify-center gap-2"
                     >
-                      Saqlash
+                      {saving && <Loader2 className="animate-spin" size={20} />}
+                      {saving ? 'Saqlanmoqda...' : 'Saqlash'}
                     </button>
                   </motion.div>
                 )}

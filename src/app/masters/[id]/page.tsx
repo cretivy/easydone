@@ -13,6 +13,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { motion, AnimatePresence } from "framer-motion";
+import { useAuth } from "@/lib/AuthContext";
+import { useRouter } from "next/navigation";
 
 export default function MasterProfilePage() {
   const { id } = useParams();
@@ -22,6 +24,14 @@ export default function MasterProfilePage() {
   const [activeTab, setActiveTab] = useState("portfolio");
   const [showOrderModal, setShowOrderModal] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
+  
+  // Order states
+  const { user } = useAuth();
+  const router = useRouter();
+  const [orderPrice, setOrderPrice] = useState("");
+  const [orderTitle, setOrderTitle] = useState("");
+  const [orderDesc, setOrderDesc] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (id) {
@@ -73,6 +83,48 @@ export default function MasterProfilePage() {
       console.error("Error fetching master profile:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleCreateOrder = async () => {
+    if (!user) {
+      alert("Iltimos, avval tizimga kiring!");
+      return;
+    }
+
+    if (!orderPrice || !orderTitle) {
+      alert("Iltimos, barcha maydonlarni to'ldiring!");
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          clientId: user.uid,
+          masterId: id,
+          price: parseFloat(orderPrice),
+          title: orderTitle,
+          description: orderDesc,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        alert("Buyurtma muvaffaqiyatli yaratildi! Usta bilan bog'lanishingiz mumkin.");
+        setShowOrderModal(false);
+        // Optionally redirect to a dashboard
+        // router.push("/dashboard/orders");
+      } else {
+        alert("Xato: " + data.error);
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server bilan bog'lanishda xato!");
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -352,30 +404,44 @@ export default function MasterProfilePage() {
                 </button>
                 <h2 className="text-3xl font-black mb-2">Buyurtma berish</h2>
                 <p className="text-slate-500 mb-8">Usta bilan bog'lanish va ish tafsilotlarini kelishish</p>
-
                 <div className="space-y-4">
-                   <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Ish turi</label>
-                      <input type="text" defaultValue={master.mainCategory} className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none" />
-                   </div>
-                   <div className="grid grid-cols-2 gap-4">
-                      <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Sana</label>
-                         <input type="date" className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none" />
-                      </div>
-                      <div>
-                         <label className="block text-sm font-bold text-slate-700 mb-2">Vaqt</label>
-                         <input type="time" className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none" />
-                      </div>
-                   </div>
-                   <div>
-                      <label className="block text-sm font-bold text-slate-700 mb-2">Tavsif</label>
-                      <textarea className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none h-32" placeholder="Nima ish bajarilishi kerakligini batafsil yozing..."></textarea>
-                   </div>
-                   <button className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-emerald-200 mt-4">
-                      So'rovni yuborish
-                   </button>
-                </div>
+                    <div>
+                       <label className="block text-sm font-bold text-slate-700 mb-2">Ish turi / Sarlavha</label>
+                       <input 
+                         type="text" 
+                         value={orderTitle}
+                         onChange={(e) => setOrderTitle(e.target.value)}
+                         placeholder="Masalan: Uy ta'mirlash"
+                         className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none" 
+                       />
+                    </div>
+                    <div>
+                        <label className="block text-sm font-bold text-slate-700 mb-2">Kelishilgan narx (so'm)</label>
+                        <input 
+                          type="number" 
+                          value={orderPrice}
+                          onChange={(e) => setOrderPrice(e.target.value)}
+                          placeholder={master.price} 
+                          className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none" 
+                        />
+                    </div>
+                    <div>
+                       <label className="block text-sm font-bold text-slate-700 mb-2">Tavsif</label>
+                       <textarea 
+                         value={orderDesc}
+                         onChange={(e) => setOrderDesc(e.target.value)}
+                         className="w-full p-4 bg-slate-50 rounded-2xl border-none ring-1 ring-slate-100 outline-none h-32" 
+                         placeholder="Nima ish bajarilishi kerakligini batafsil yozing..."
+                       ></textarea>
+                    </div>
+                    <button 
+                      onClick={handleCreateOrder}
+                      disabled={isSubmitting}
+                      className="w-full py-4 bg-emerald-500 text-white rounded-2xl font-black text-lg shadow-lg shadow-emerald-200 mt-4 disabled:opacity-50 flex items-center justify-center gap-2"
+                    >
+                       {isSubmitting ? <Loader2 className="animate-spin" /> : "So'rovni yuborish (Xavfsiz bitim)"}
+                    </button>
+                 </div>
              </motion.div>
           </div>
         )}

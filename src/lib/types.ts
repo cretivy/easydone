@@ -4,7 +4,7 @@ export interface UserProfile {
   uid: string;
   displayName: string;
   email: string;
-  role: 'usta' | 'klient';
+  role: 'client' | 'master';
   nickname?: string;
   createdAt: any;
   photoURL?: string;

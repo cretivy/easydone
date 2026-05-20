@@ -1,0 +1,150 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+
+enum Role {
+  CLIENT
+  MASTER
+  ADMIN
+}
+
+enum OrderStatus {
+  PENDING
+  IN_PROGRESS
+  ON_REVIEW
+  COMPLETED
+  CANCELLED
+  UNDER_ARBITRATION
+}
+
+enum EscrowStatus {
+  FROZEN
+  RELEASED
+  REFUNDED
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  FROZEN // Money moved to escrow
+  RELEASED // Money moved from escrow to master
+  REFUNDED // Money moved from escrow back to client
+  SERVICE_FEE
+}
+
+enum TransactionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum PayoutStatus {
+  PENDING
+  APPROVED
+  PAID
+  REJECTED
+}
+
+model User {
+  id            String    @id @default(uuid())
+  firebaseUid   String    @unique // Link to existing Firebase user
+  email         String    @unique
+  fullName      String?
+  role          Role      @default(CLIENT)
+  balance       Float   @default(0)
+  avatarUrl     String?
+  
+  // Relations
+  ordersAsClient Order[]  @relation("ClientOrders")
+  ordersAsMaster Order[]  @relation("MasterOrders")
+  transactions   Transaction[]
+  payoutRequests PayoutRequest[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@map("users")
+}
+
+model Order {
+  id          String      @id @default(uuid())
+  title       String
+  description String
+  price       Float
+  status      OrderStatus @default(PENDING)
+  
+  clientId    String
+  client      User        @relation("ClientOrders", fields: [clientId], references: [id])
+  
+  masterId    String
+  master      User        @relation("MasterOrders", fields: [masterId], references: [id])
+
+  escrow      Escrow?
+  transactions Transaction[]
+
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@map("orders")
+}
+
+model Escrow {
+  id              String       @id @default(uuid())
+  orderId         String       @unique
+  order           Order        @relation(fields: [orderId], references: [id])
+  
+  amountTotal     Float
+  amountFrozen    Float
+  commissionRate  Float      @default(0.10)
+  
+  status          EscrowStatus @default(FROZEN)
+
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@map("escrows")
+}
+
+model Transaction {
+  id          String            @id @default(uuid())
+  userId      String
+  user        User              @relation(fields: [userId], references: [id])
+  
+  orderId     String?
+  order       Order?            @relation(fields: [orderId], references: [id])
+  
+  amount      Float
+  type        TransactionType
+  status      TransactionStatus @default(COMPLETED)
+  
+  description String?
+  
+  createdAt   DateTime          @default(now())
+
+  @@map("transactions")
+}
+
+model PayoutRequest {
+  id          String       @id @default(uuid())
+  masterId    String
+  master      User         @relation(fields: [masterId], references: [id])
+  
+  amount      Float
+  cardDetails String       // e.g. Humo/Uzcard number
+  status      PayoutStatus @default(PENDING)
+  
+  processedAt DateTime?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  @@map("payout_requests")
+}

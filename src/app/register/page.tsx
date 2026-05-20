@@ -18,6 +18,7 @@ export default function RegisterPage() {
   const [step, setStep] = useState(1);
   const [role, setRole] = useState<Role | null>(null);
   const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   
   const [formData, setFormData] = useState({
@@ -62,6 +63,7 @@ export default function RegisterPage() {
 
     try {
       // 1. Check unique nickname
+      setStatus("Nikneym tekshirilmoqda...");
       const nickQuery = query(collection(db, "users"), where("nickname", "==", formData.nickname.toLowerCase()));
       const nickSnapshot = await getDocs(nickQuery);
       if (!nickSnapshot.empty) {
@@ -69,6 +71,7 @@ export default function RegisterPage() {
       }
 
       // 2. Create Auth User
+      setStatus("Profil yaratilmoqda...");
       const userCredential = await createUserWithEmailAndPassword(auth, formData.email, formData.password);
       const user = userCredential.user;
 
@@ -78,6 +81,7 @@ export default function RegisterPage() {
       // 3. Upload Portfolio Images if Master
       let portfolioUrls: string[] = [];
       if (role === "master" && portfolioFiles.length > 0) {
+        setStatus("Portfolioni yuklanmoqda...");
         const uploadPromises = portfolioFiles.map(async (file, idx) => {
           const storageRef = ref(storage, `portfolios/${user.uid}/${Date.now()}_${idx}`);
           await uploadBytes(storageRef, file);
@@ -87,6 +91,7 @@ export default function RegisterPage() {
       }
 
       // 4. Save to Firestore
+      setStatus("Ma'lumotlar saqlanmoqda...");
       const userRef = doc(db, "users", user.uid);
       const userData: any = {
         uid: user.uid,
@@ -270,9 +275,17 @@ export default function RegisterPage() {
                   disabled={loading || !formData.name || !formData.email || !formData.password}
                   className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" /> : null}
-                  {role === 'client' ? "Ro'yxatdan o'tish" : "Davom etish"} 
-                  {role !== 'client' && <ChevronRight className="inline" />}
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      <span className="text-sm font-medium">{status}</span>
+                    </>
+                  ) : (
+                    <>
+                      {role === 'client' ? "Ro'yxatdan o'tish" : "Davom etish"} 
+                      {role !== 'client' && <ChevronRight className="inline" />}
+                    </>
+                  )}
                 </button>
               </div>
             </motion.div>
@@ -428,8 +441,14 @@ export default function RegisterPage() {
                   disabled={loading}
                   className="btn-primary w-full py-4 text-lg flex items-center justify-center gap-2"
                 >
-                  {loading ? <Loader2 className="animate-spin" /> : null}
-                  Ro'yxatdan o'tishni yakunlash
+                  {loading ? (
+                    <>
+                      <Loader2 className="animate-spin" />
+                      <span className="text-sm font-medium">{status}</span>
+                    </>
+                  ) : (
+                    "Ro'yxatdan o'tishni yakunlash"
+                  )}
                 </button>
               </div>
             </motion.div>
