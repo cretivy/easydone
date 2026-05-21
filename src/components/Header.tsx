@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { Hammer, User, Search, Menu, X } from "lucide-react";
+import { Hammer, User, LogOut, LayoutDashboard, Plus, Search, Menu, X } from "lucide-react";
 import { useState, useEffect } from "react";
 import { auth } from "@/lib/firebase";
 import { onAuthStateChanged, signOut } from "firebase/auth";
@@ -51,9 +51,15 @@ export default function Header() {
         <div className="hidden md:flex items-center gap-4">
           {user ? (
             <div className="flex items-center gap-4">
+               {userData?.role?.toUpperCase() === 'CLIENT' && (
+                 <Link href="/jobs/create" className="text-sm font-black bg-emerald-500 text-white px-5 py-2.5 rounded-xl hover:bg-emerald-600 transition-all shadow-lg shadow-emerald-100 flex items-center gap-2">
+                    <Plus size={18} /> Buyurtma berish
+                 </Link>
+               )}
                <Link href="/dashboard/orders" className="text-sm font-bold text-emerald-600 hover:text-emerald-700 bg-emerald-50 px-4 py-2 rounded-xl border border-emerald-100 transition-all">
                   Mening buyurtmalarim
                </Link>
+
                <Link href="/profile" className="flex items-center gap-2 bg-slate-50 px-4 py-2 rounded-xl border border-slate-100 hover:bg-white transition-all">
                   <div className="w-8 h-8 bg-emerald-100 rounded-full flex items-center justify-center text-emerald-600 font-bold text-xs uppercase">
                     {user.displayName?.substring(0, 2) || "U"}

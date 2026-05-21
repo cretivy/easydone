@@ -76,13 +76,14 @@ export default function JobsMarketplace() {
                <h1 className="text-5xl md:text-7xl font-black tracking-tighter mb-6">Buyurtmalar <span className="text-emerald-400 font-outline-2">Birjasi</span></h1>
                <p className="text-slate-400 text-xl font-medium">Mijozlar tomonidan e'lon qilingan loyihalarni toping va o'z taklifingizni bering.</p>
             </div>
-            {userData?.role === 'CLIENT' && (
+            {userData?.role?.toUpperCase() === 'CLIENT' && (
               <Link href="/jobs/create" className="bg-emerald-500 hover:bg-emerald-600 px-8 py-5 rounded-[24px] font-black text-lg shadow-xl shadow-emerald-500/20 transition-all flex items-center gap-2">
                 <Plus size={24} /> Buyurtma e'lon qilish
               </Link>
             )}
           </div>
         </div>
+
         <div className="absolute top-0 right-0 w-1/3 h-full bg-emerald-500/10 blur-[120px] rounded-full translate-x-1/2 -translate-y-1/2"></div>
       </div>
 
