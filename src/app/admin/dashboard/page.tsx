@@ -4,76 +4,53 @@ import { useEffect, useState } from "react";
 import { Loader2, ShieldAlert, CreditCard, Check, X } from "lucide-react";
 
 export default function AdminDashboard() {
-  // ВРЕМЕННО: Моки для тестирования
-  const [data, setData] = useState<{ disputes: any[]; payouts: any[] }>({ 
-    disputes: [
-      {
-        id: "ord-99",
-        title: "Разработка сайта-визитки",
-        price: 1200000,
-        client: { fullName: "Артур Менеджер" },
-        master: { fullName: "Сардор Разработчик" }
-      },
-      {
-        id: "ord-101",
-        title: "Монтаж кондиционера",
-        price: 450000,
-        client: { fullName: "Мария Ивановна" },
-        master: { fullName: "Баходир Уста" }
-      }
-    ], 
-    payouts: [
-      {
-        id: "pay-1",
-        master: { fullName: "Сардор Разработчик" },
-        cardDetails: "8600 12** **** 4455",
-        amount: 3500000,
-        createdAt: new Date().toISOString()
-      },
-      {
-        id: "pay-2",
-        master: { fullName: "Баходир Уста" },
-        cardDetails: "9860 00** **** 1122",
-        amount: 800000,
-        createdAt: new Date().toISOString()
-      }
-    ] 
-  });
-  const [loading, setLoading] = useState(false); // Отключаем загрузку
-
-  useEffect(() => {
-    // fetchData(); // Временно не запрашиваем реальные данные
-  }, []);
+  const [data, setData] = useState<{ disputes: any[]; payouts: any[] }>({ disputes: [], payouts: [] });
+  const [loading, setLoading] = useState(true);
 
   const fetchData = async () => {
-    // Временно отключено
-  };
-
-  const handleAction = async (type: string, id: string, action: string) => {
-    alert(`Admin Test: Action ${action} for ${type} id ${id}`);
-    // Локальное обновление
-    if (type === "DISPUTE") {
-        setData(prev => ({ ...prev, disputes: prev.disputes.filter(d => d.id !== id) }));
-    } else {
-        setData(prev => ({ ...prev, payouts: prev.payouts.filter(p => p.id !== id) }));
+    try {
+      setLoading(true);
+      const res = await fetch("/api/admin/data");
+      const result = await res.json();
+      if (!result.error) {
+        setData(result);
+      }
+    } catch (error) {
+      console.error("Error fetching admin data:", error);
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto" /></div>;
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const handleAction = async (type: string, id: string, action: string) => {
+    try {
+      const res = await fetch("/api/admin/action", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type, id, action }),
+      });
+      if (res.ok) {
+        await fetchData();
+      }
+    } catch (error) {
+      console.error("Error performing admin action:", error);
+    }
+  };
+
+  if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-emerald-500" /></div>;
 
   return (
     <div className="bg-slate-50 min-h-screen p-8">
       <div className="max-w-6xl mx-auto space-y-12">
         
         {/* HEADER */}
-        <div className="flex justify-between items-start">
-           <div>
-              <h1 className="text-4xl font-black text-slate-900">Admin Panel</h1>
-              <p className="text-slate-500 font-bold mt-2">Bozor faoliyatini boshqarish va nizolarni hal qilish</p>
-           </div>
-           <div className="bg-red-100 text-red-700 px-4 py-2 rounded-2xl text-xs font-bold border border-red-200">
-              ⚠️ TEST REJIMI (MOCK DATA)
-           </div>
+        <div>
+           <h1 className="text-4xl font-black text-slate-900">Admin Panel</h1>
+           <p className="text-slate-500 font-bold mt-2">Bozor faoliyatini boshqarish va nizolarni hal qilish</p>
         </div>
 
         {/* SECTION: DISPUTES */}
@@ -89,7 +66,7 @@ export default function AdminDashboard() {
                <div key={order.id} className="bg-white p-6 rounded-[32px] border border-slate-100 shadow-sm flex flex-col md:flex-row justify-between gap-6 hover:border-red-200 transition-colors">
                  <div>
                     <h3 className="text-lg font-black">{order.title}</h3>
-                    <p className="text-sm text-slate-500 mb-4">#{order.id}</p>
+                    <p className="text-sm text-slate-500 mb-4">#{order.id.slice(0,8)}</p>
                     <div className="grid grid-cols-2 gap-8">
                        <div>
                           <p className="text-[10px] uppercase font-black text-slate-400">Mijoz</p>

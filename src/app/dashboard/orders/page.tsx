@@ -1,68 +1,66 @@
 "use client";
 
-import { useEffect, useState } from "react";
-// import { useAuth } from "@/lib/AuthContext";
+import { useEffect, useState, useCallback } from "react";
+import { useAuth } from "@/lib/AuthContext";
 import { Loader2, CheckCircle, Clock, AlertCircle } from "lucide-react";
 
 export default function OrdersDashboard() {
-  // ВРЕМЕННО: Тестовый пользователь для отладки
-  const user = { uid: "test-123", role: "MASTER", fullName: "Тестовый Мастер" };
-  const authLoading = false;
+  const { user, loading: authLoading } = useAuth();
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const mockOrders = [
-    {
-      id: "ord-1",
-      title: "Разработка логотипа для кофейни",
-      price: 500000,
-      status: "IN_PROGRESS",
-      client: { fullName: "Иван Заказчик", firebaseUid: "client-abc" },
-      master: { fullName: "Тестовый Мастер", firebaseUid: "test-123" }
-    },
-    {
-      id: "ord-2",
-      title: "Ремонт стиральной машины",
-      price: 150000,
-      status: "ON_REVIEW",
-      client: { fullName: "Анна Петрова", firebaseUid: "client-def" },
-      master: { fullName: "Тестовый Мастер", firebaseUid: "test-123" }
-    },
-    {
-      id: "ord-3",
-      title: "Перевод текста (английский)",
-      price: 300000,
-      status: "COMPLETED",
-      client: { fullName: "Global Solutions", firebaseUid: "test-123" }, // Здесь мы как клиент
-      master: { fullName: "Алексей Переводчик", firebaseUid: "master-789" }
+  const fetchOrders = useCallback(async () => {
+    if (!user) return;
+    try {
+      setLoading(true);
+      const res = await fetch(`/api/orders?uid=${user.uid}`);
+      const data = await res.json();
+      if (data.orders) {
+        setOrders(data.orders);
+      }
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+    } finally {
+      setLoading(false);
     }
-  ];
-
-  const [orders, setOrders] = useState<any[]>(mockOrders);
-  const [loading, setLoading] = useState(false); // Сразу false для моков
+  }, [user]);
 
   useEffect(() => {
-     // Ничего не делаем, данные уже в стейте
-  }, []);
-
-  const fetchOrders = async () => {
-    // Временно отключено
-    console.log("Fetch orders skipped - using mocks");
-  };
+    if (!authLoading && user) {
+      fetchOrders();
+    }
+  }, [user, authLoading, fetchOrders]);
 
   const handleAction = async (orderId: string, action: string) => {
-    alert(`Тест: Выполнено действие ${action} для заказа ${orderId}`);
-    // Обновляем локально для демонстрации
-    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: action === "SUBMIT" ? "ON_REVIEW" : "COMPLETED" } : o));
+    try {
+      const res = await fetch(`/api/orders/${orderId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        await fetchOrders();
+      }
+    } catch (error) {
+      console.error("Error performing action:", error);
+    }
   };
 
-  if (loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto" /></div>;
+  if (authLoading || loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-emerald-500" /></div>;
+
+  if (!user) {
+    return (
+      <div className="max-w-5xl mx-auto p-4 py-20 text-center">
+        <h1 className="text-2xl font-bold mb-4">Iltimos, avval tizimga kiring</h1>
+        <a href="/login" className="btn-primary px-8 py-3">Kirish</a>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto p-4 py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-black">Mening buyurtmalarim</h1>
-        <div className="bg-amber-100 text-amber-700 px-4 py-2 rounded-2xl text-xs font-bold border border-amber-200">
-           ⚠️ TEST REJIMI (FIREBASE O'CHIRILGAN)
-        </div>
       </div>
       
       {orders.length === 0 ? (
@@ -74,10 +72,11 @@ export default function OrdersDashboard() {
           {orders.map((order) => {
             const isClient = order.client.firebaseUid === user.uid;
             const statusLabel = {
+                PENDING: "Kutilmoqda",
                 IN_PROGRESS: "Ish jarayonida",
                 ON_REVIEW: "Tekshiruvda",
                 COMPLETED: "Bajarildi",
-                UNDER_ARBITRATION: "Sizning shikoyatingiz",
+                UNDER_ARBITRATION: "Arbitrajda",
                 CANCELLED: "Bekor qilingan"
             }[order.status as string] || order.status;
 
@@ -98,7 +97,9 @@ export default function OrdersDashboard() {
                   <p className="text-sm text-slate-500">
                     {isClient ? `Usta: ${order.master.fullName || "Noma'lum"}` : `Mijoz: ${order.client.fullName || "Noma'lum"}`}
                   </p>
-                  <p className="font-black text-emerald-600 mt-2">{parseFloat(order.price as any).toLocaleString()} so'm</p>
+                  <div className="flex items-center gap-4 mt-2">
+                    <p className="font-black text-emerald-600">{parseFloat(order.price as any).toLocaleString()} so'm</p>
+                  </div>
                 </div>
 
                 <div className="flex gap-2">

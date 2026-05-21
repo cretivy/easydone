@@ -101,8 +101,21 @@ export default function RegisterPage() {
         role: role,
         createdAt: serverTimestamp(),
       };
-
       await setDoc(userRef, userData);
+
+      // 5. Sync to Postgres (Prisma)
+      setStatus("Sinxronizatsiya qilinmoqda...");
+      await fetch("/api/auth/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: formData.email,
+          fullName: formData.name,
+          role: role
+        }),
+      });
+
 
       if (role === "master") {
         const masterRef = doc(db, "master_profiles", user.uid);
