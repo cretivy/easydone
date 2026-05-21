@@ -77,10 +77,18 @@ export default function ProfilePage() {
 
       let newPhotoURL = user.photoURL;
       if (photoFile) {
-        const storageRef = ref(storage, `profiles/${user.uid}`);
-        await uploadBytes(storageRef, photoFile);
-        newPhotoURL = await getDownloadURL(storageRef);
+        const formData = new FormData();
+        formData.append("file", photoFile);
+        const uploadRes = await fetch("/api/upload", {
+          method: "POST",
+          body: formData,
+        });
+        const uploadData = await uploadRes.json();
+        if (uploadData.url) {
+          newPhotoURL = uploadData.url;
+        }
       }
+
 
       const updatePayload: any = {
         displayName: name,

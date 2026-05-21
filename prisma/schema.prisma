@@ -52,6 +52,8 @@ model User {
   ordersAsMaster Order[]     @relation("MasterOrders")
   transactions   Transaction[]
   payoutRequests PayoutRequest[]
+  jobPosts       JobPost[]
+  jobOffers      JobOffer[]
 }
 
 model PayoutRequest {
