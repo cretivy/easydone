@@ -24,7 +24,18 @@ export async function POST(
     }
 
     switch (action) {
+      case "ACCEPT": // Master accepts order
+        if (order.status !== "PENDING") throw new Error("Order is not in pending state");
+        if (order.master.firebaseUid !== userId) throw new Error("Only master can accept order");
+
+        const acceptedOrder = await prisma.order.update({
+          where: { id: orderId },
+          data: { status: "IN_PROGRESS" },
+        });
+        return NextResponse.json({ success: true, order: acceptedOrder });
+
       case "SUBMIT": // Master submits work
+
         if (order.status !== "IN_PROGRESS") throw new Error("Invalid order status for submission");
         if (order.master.firebaseUid !== userId) throw new Error("Only master can submit work");
 

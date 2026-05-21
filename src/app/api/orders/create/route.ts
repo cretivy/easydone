@@ -38,9 +38,10 @@ export async function POST(req: Request) {
           price: price,
           clientId: client.id,
           masterId: master.id,
-          status: "IN_PROGRESS", // Starting "In work" immediately for this flow
+          status: "PENDING", // Master needs to accept
         },
       });
+
 
       // 3. Subtract from client balance
       await tx.user.update({

@@ -5,7 +5,8 @@ import { useAuth } from "@/lib/AuthContext";
 import { Loader2, CheckCircle, Clock, AlertCircle } from "lucide-react";
 
 export default function OrdersDashboard() {
-  const { user, loading: authLoading } = useAuth();
+  const { user, userData, loading: authLoading } = useAuth();
+
   const [orders, setOrders] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -33,18 +34,22 @@ export default function OrdersDashboard() {
 
   const handleAction = async (orderId: string, action: string) => {
     try {
-      const res = await fetch(`/api/orders/${orderId}`, {
-        method: "PATCH",
+      const res = await fetch(`/api/orders/${orderId}/action`, {
+        method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action }),
+        body: JSON.stringify({ action, userId: user?.uid }),
       });
       if (res.ok) {
         await fetchOrders();
+      } else {
+        const errData = await res.json();
+        alert("Xatolik: " + errData.error);
       }
     } catch (error) {
       console.error("Error performing action:", error);
     }
   };
+
 
   if (authLoading || loading) return <div className="p-20 text-center"><Loader2 className="animate-spin mx-auto text-emerald-500" /></div>;
 
@@ -61,7 +66,12 @@ export default function OrdersDashboard() {
     <div className="max-w-5xl mx-auto p-4 py-10">
       <div className="flex justify-between items-center mb-8">
         <h1 className="text-3xl font-black">Mening buyurtmalarim</h1>
+        <div className="text-right">
+           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sizning balansingiz</p>
+           <p className="text-xl font-black text-emerald-600">{(userData?.balance || 0).toLocaleString()} so'm</p>
+        </div>
       </div>
+
       
       {orders.length === 0 ? (
         <div className="bg-white p-10 rounded-[32px] text-center border border-slate-100 italic text-slate-400">
@@ -104,10 +114,18 @@ export default function OrdersDashboard() {
 
                 <div className="flex gap-2">
                   {/* MASTER ACTIONS */}
+                  {!isClient && order.status === "PENDING" && (
+                    <button 
+                      onClick={() => handleAction(order.id, "ACCEPT")}
+                      className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-colors"
+                    >
+                      Buyurtmani qabul qilish
+                    </button>
+                  )}
                   {!isClient && order.status === "IN_PROGRESS" && (
                     <button 
                       onClick={() => handleAction(order.id, "SUBMIT")}
-                      className="px-6 py-3 bg-emerald-500 text-white rounded-xl font-bold text-sm hover:bg-emerald-600 transition-colors"
+                      className="px-6 py-3 bg-blue-500 text-white rounded-xl font-bold text-sm hover:bg-blue-600 transition-colors"
                     >
                       Ishni topshirish
                     </button>

@@ -230,6 +230,17 @@ export default function ProfilePage() {
            </div>
         </div>
 
+        {/* WALLET / BALANCE */}
+        <div className="bg-emerald-600 rounded-[40px] p-8 md:p-12 text-white mb-8 shadow-xl shadow-emerald-100 flex flex-col md:flex-row justify-between items-center gap-8">
+           <div>
+              <p className="text-emerald-100 font-bold uppercase tracking-widest text-xs mb-2">Sizning balansingiz</p>
+              <h2 className="text-5xl font-black">{(userData?.balance || 0).toLocaleString()} <span className="text-2xl text-emerald-200">so'm</span></h2>
+           </div>
+           <button className="bg-white text-emerald-600 px-8 py-4 rounded-2xl font-black text-lg hover:bg-emerald-50 transition-all shadow-lg">
+              Balansni to'ldirish
+           </button>
+        </div>
+
         {/* EXTRA SECTIONS */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
            <div className="bg-white rounded-[40px] p-8 shadow-sm border border-slate-100">

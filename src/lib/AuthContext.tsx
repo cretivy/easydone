@@ -26,15 +26,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   const fetchUserData = async (uid: string) => {
     try {
+      // 1. Fetch Firestore Data
       const docRef = doc(db, "users", uid);
       const docSnap = await getDoc(docRef);
-      if (docSnap.exists()) {
-        setUserData(docSnap.data());
-      }
+      let fsData = docSnap.exists() ? docSnap.data() : {};
+
+      // 2. Fetch Postgres Data (Balance, etc)
+      const pgRes = await fetch(`/api/auth/sync?uid=${uid}`);
+      const pgData = await pgRes.json();
+
+      setUserData({ ...fsData, ...pgData.user });
     } catch (error) {
       console.error("Error fetching user data:", error);
     }
   };
+
 
   const refreshUserData = React.useCallback(async () => {
     if (user) {

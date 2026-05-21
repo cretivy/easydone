@@ -16,6 +16,7 @@ export async function POST(req: Request) {
         email,
         fullName,
         role: role.toUpperCase(),
+        balance: 1000000, // TEST UCHUN: Yangi foydalanuvchiga 1 mln so'm sovg'a
       },
     });
 
@@ -23,5 +24,21 @@ export async function POST(req: Request) {
   } catch (error: any) {
     console.error("Error syncing user to Postgres:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+}
+
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+  const uid = searchParams.get("uid");
+
+  if (!uid) return NextResponse.json({ error: "UID missing" }, { status: 400 });
+
+  try {
+    const user = await prisma.user.findUnique({
+      where: { firebaseUid: uid }
+    });
+    return NextResponse.json({ user });
+  } catch (error) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
   }
 }
