@@ -63,16 +63,21 @@ export default function RegisterPage() {
 
     try {
       // 1. Check unique nickname (Optimized)
-      setStatus("Nikneym tekshirilmoqda...");
-      try {
-        const nickQuery = query(collection(db, "users"), where("nickname", "==", formData.nickname.toLowerCase()));
-        const nickSnapshot = await getDocs(nickQuery);
-        if (!nickSnapshot.empty) {
-          throw new Error("Bu nikneym allaqachon band. Iltimos, boshqasini tanlang.");
+      const validateNickname = async (nick: string) => {
+        if (!nick) return true;
+        try {
+          const res = await fetch(`/api/auth/check-nickname?nickname=${nick.toLowerCase()}`);
+          const data = await res.json();
+          return data.available;
+        } catch (e) {
+          return false;
         }
-      } catch (nickErr) {
-        console.warn("Nickname check bypassed or failed:", nickErr);
-        // If it's a permission error, we might want to continue or show a better message
+      };
+
+      setStatus("Nikneym tekshirilmoqda...");
+      const isAvailable = await validateNickname(formData.nickname);
+      if (!isAvailable) {
+        throw new Error("Bu nikneym allaqachon band. Iltimos, boshqasini tanlang.");
       }
 
 

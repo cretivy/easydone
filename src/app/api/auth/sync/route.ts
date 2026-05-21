@@ -3,22 +3,26 @@ import { prisma } from "@/lib/prisma";
 
 export async function POST(req: Request) {
   try {
-    const { uid, email, fullName, role } = await req.json();
+    const { uid, email, fullName, role, nickname } = await req.json();
+
 
     const user = await prisma.user.upsert({
       where: { firebaseUid: uid },
       update: {
         fullName,
         role: role.toUpperCase(),
+        nickname: nickname?.toLowerCase() || null,
       },
       create: {
         firebaseUid: uid,
         email,
         fullName,
         role: role.toUpperCase(),
-        balance: 1000000, // TEST UCHUN: Yangi foydalanuvchiga 1 mln so'm sovg'a
+        nickname: nickname?.toLowerCase() || null,
+        balance: 1000000, 
       },
     });
+
 
     return NextResponse.json({ success: true, user });
   } catch (error: any) {
