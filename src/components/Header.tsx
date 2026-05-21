@@ -37,10 +37,13 @@ export default function Header() {
 
         {/* DESKTOP NAV */}
         <div className="hidden md:flex items-center gap-8">
-          <Link href="/masters" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Ustalar</Link>
+          <Link href="/masters" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors uppercase tracking-widest">Mutaxassislar</Link>
+          <Link href="/jobs" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors uppercase tracking-widest">Birja</Link>
           <Link href="/categories" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Xizmatlar</Link>
           <Link href="/how-it-works" className="text-sm font-bold text-slate-600 hover:text-emerald-500 transition-colors">Qanday ishlaydi?</Link>
-          <Link href="/admin/dashboard" className="text-xs font-black bg-red-50 text-red-600 px-3 py-1 rounded-lg border border-red-100 hover:bg-red-500 hover:text-white transition-all uppercase">Admin</Link>
+          {userData?.role === 'ADMIN' && (
+            <Link href="/admin/dashboard" className="text-xs font-black bg-red-50 text-red-600 px-3 py-1 rounded-lg border border-red-100 hover:bg-red-500 hover:text-white transition-all uppercase">Admin</Link>
+          )}
         </div>
 
 
