@@ -1,55 +1,53 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * KWORK MODEL: Order Creation & Fund Freezing
+ * 1. Checks Client Balance
+ * 2. Creates Order (Status: PENDING)
+ * 3. Deducts money from Client and Freezes it in Escrow
+ * 4. Records Transaction
+ */
 export async function POST(req: Request) {
   try {
     const { clientId, masterId, price, title, description } = await req.json();
 
-    if (!clientId || !masterId || !price) {
+    if (!clientId || !masterId || !price || !title) {
       return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
     }
 
-    // 1. Transaction to handle Order creation and fund freezing
     const result = await prisma.$transaction(async (tx) => {
-      // Find client
-      const client = await tx.user.findFirst({
-         where: { firebaseUid: clientId }
-      });
+      // 1. Get Client and Master (using firebaseUid)
+      const client = await tx.user.findUnique({ where: { firebaseUid: clientId } });
+      const master = await tx.user.findUnique({ where: { firebaseUid: masterId } });
 
-      if (!client) throw new Error("Client not found in system");
+      if (!client) throw new Error("Mijoz topilmadi");
+      if (!master) throw new Error("Usta topilmadi");
 
-      // Check balance (Internal Balance Logic)
+      // 2. Validate Balance
       if (client.balance < price) {
-        throw new Error("Insufficient balance");
+        throw new Error("Balansda mablag' yetarli emas. Iltimos, hisobingizni to'ldiring.");
       }
 
-      // Find master
-      const master = await tx.user.findFirst({
-        where: { firebaseUid: masterId }
-      });
-
-      if (!master) throw new Error("Master not found in system");
-
-      // 2. Create the Order
+      // 3. Create Order
       const order = await tx.order.create({
         data: {
           title,
           description,
-          price: price,
+          price,
           clientId: client.id,
           masterId: master.id,
-          status: "PENDING", // Master needs to accept
+          status: "PENDING", // Master must accept
         },
       });
 
-
-      // 3. Subtract from client balance
+      // 4. Freeze Funds (Deduct from client)
       await tx.user.update({
         where: { id: client.id },
         data: { balance: { decrement: price } },
       });
 
-      // 4. Create Escrow entry
+      // 5. Create Escrow Record
       await tx.escrow.create({
         data: {
           orderId: order.id,
@@ -59,14 +57,14 @@ export async function POST(req: Request) {
         },
       });
 
-      // 5. Create Transaction record (FROZEN)
+      // 6. Record Transaction for Client
       await tx.transaction.create({
         data: {
           userId: client.id,
           orderId: order.id,
-          amount: price,
+          amount: -price,
           type: "FROZEN",
-          description: `Заморозка средств для заказа: ${title}`,
+          description: `Buyurtma uchun mablag' muzlatildi: ${title}`,
         },
       });
 
@@ -75,7 +73,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, order: result });
   } catch (error: any) {
-    console.error("Order creation error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    console.error("Order Create Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }

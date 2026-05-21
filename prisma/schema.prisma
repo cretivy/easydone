@@ -1,23 +1,12 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "debian-openssl-3.0.x"]
 }
 
-
-
-
 datasource db {
   provider = "postgresql"
+  url      = env("DATABASE_URL")
 }
-
-
-
-
-
-
 
 enum Role {
   CLIENT
@@ -30,8 +19,8 @@ enum OrderStatus {
   IN_PROGRESS
   ON_REVIEW
   COMPLETED
-  CANCELLED
   UNDER_ARBITRATION
+  CANCELLED
 }
 
 enum EscrowStatus {
@@ -43,53 +32,36 @@ enum EscrowStatus {
 enum TransactionType {
   DEPOSIT
   WITHDRAWAL
-  FROZEN // Money moved to escrow
-  RELEASED // Money moved from escrow to master
-  REFUNDED // Money moved from escrow back to client
+  FROZEN
+  RELEASED
   SERVICE_FEE
-}
-
-enum TransactionStatus {
-  PENDING
-  COMPLETED
-  FAILED
-}
-
-enum PayoutStatus {
-  PENDING
-  APPROVED
-  PAID
-  REJECTED
+  REFUND
 }
 
 model User {
-  id            String    @id @default(uuid())
-  firebaseUid   String    @unique // Link to existing Firebase user
-  email         String    @unique
-  fullName      String?
-  role          Role      @default(CLIENT)
-  balance       Float   @default(0)
-  avatarUrl     String?
+  id           String        @id @default(cuid())
+  firebaseUid  String        @unique
+  email        String        @unique
+  fullName     String
+  role         Role          @default(CLIENT)
+  balance      Float         @default(0)
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
   
-  // Relations
-  ordersAsClient Order[]  @relation("ClientOrders")
-  ordersAsMaster Order[]  @relation("MasterOrders")
+  ordersAsClient Order[]     @relation("ClientOrders")
+  ordersAsMaster Order[]     @relation("MasterOrders")
   transactions   Transaction[]
-  payoutRequests PayoutRequest[]
-
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
-
-  @@map("users")
 }
 
 model Order {
-  id          String      @id @default(uuid())
+  id          String      @id @default(cuid())
   title       String
-  description String
+  description String?
   price       Float
   status      OrderStatus @default(PENDING)
-  
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
   clientId    String
   client      User        @relation("ClientOrders", fields: [clientId], references: [id])
   
@@ -98,61 +70,27 @@ model Order {
 
   escrow      Escrow?
   transactions Transaction[]
-
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-
-  @@map("orders")
 }
 
 model Escrow {
-  id              String       @id @default(uuid())
-  orderId         String       @unique
-  order           Order        @relation(fields: [orderId], references: [id])
-  
-  amountTotal     Float
-  amountFrozen    Float
-  commissionRate  Float      @default(0.10)
-  
-  status          EscrowStatus @default(FROZEN)
-
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
-
-  @@map("escrows")
+  id             String       @id @default(cuid())
+  orderId        String       @unique
+  order          Order        @relation(fields: [orderId], references: [id])
+  amountTotal    Float
+  amountFrozen   Float
+  commissionRate Float        @default(0.10) // 10% platform fee
+  status         EscrowStatus @default(FROZEN)
+  createdAt      DateTime     @default(now())
 }
 
 model Transaction {
-  id          String            @id @default(uuid())
+  id          String          @id @default(cuid())
   userId      String
-  user        User              @relation(fields: [userId], references: [id])
-  
+  user        User            @relation(fields: [userId], references: [id])
   orderId     String?
-  order       Order?            @relation(fields: [orderId], references: [id])
-  
+  order       Order?          @relation(fields: [orderId], references: [id])
   amount      Float
   type        TransactionType
-  status      TransactionStatus @default(COMPLETED)
-  
   description String?
-  
-  createdAt   DateTime          @default(now())
-
-  @@map("transactions")
-}
-
-model PayoutRequest {
-  id          String       @id @default(uuid())
-  masterId    String
-  master      User         @relation(fields: [masterId], references: [id])
-  
-  amount      Float
-  cardDetails String       // e.g. Humo/Uzcard number
-  status      PayoutStatus @default(PENDING)
-  
-  processedAt DateTime?
-  createdAt   DateTime     @default(now())
-  updatedAt   DateTime     @updatedAt
-
-  @@map("payout_requests")
+  createdAt   DateTime        @default(now())
 }

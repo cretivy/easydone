@@ -1,116 +1,115 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+/**
+ * KWORK MODEL: Order Lifecycle Actions
+ * - ACCEPT: Master starts working (PENDING -> IN_PROGRESS)
+ * - SUBMIT: Master completes and asks for review (IN_PROGRESS -> ON_REVIEW)
+ * - CONFIRM: Client accepts work (ON_REVIEW -> COMPLETED, Funds 90/10)
+ * - DISPUTE: Client opens arbitrage (ON_REVIEW -> UNDER_ARBITRATION)
+ */
 export async function POST(
   req: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { action, userId } = await req.json(); // userId is the firebaseUid of person taking action
+    const { action, userId } = await req.json(); // userId = firebaseUid
     const { id: orderId } = await params;
 
     const order = await prisma.order.findUnique({
       where: { id: orderId },
-      include: { escrow: true, client: true, master: true },
+      include: { 
+        escrow: true, 
+        client: true, 
+        master: true 
+      },
     });
 
-    if (!order) {
-      return NextResponse.json({ error: "Order not found" }, { status: 404 });
-    }
+    if (!order) return NextResponse.json({ error: "Buyurtma topilmadi" }, { status: 404 });
+    const isClient = order.client.firebaseUid === userId;
+    const isMaster = order.master.firebaseUid === userId;
 
-    // AUTH CHECK: Make sure the user is either client and master
-    if (order.client.firebaseUid !== userId && order.master.firebaseUid !== userId) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-    }
+    if (!isClient && !isMaster) return NextResponse.json({ error: "Ruxsat yo'q" }, { status: 403 });
 
     switch (action) {
-      case "ACCEPT": // Master accepts order
-        if (order.status !== "PENDING") throw new Error("Order is not in pending state");
-        if (order.master.firebaseUid !== userId) throw new Error("Only master can accept order");
-
-        const acceptedOrder = await prisma.order.update({
+      case "ACCEPT":
+        if (order.status !== "PENDING") throw new Error("Buyurtma kutilayotgan holatda emas");
+        if (!isMaster) throw new Error("Faqat usta buyurtmani qabul qilishi mumkin");
+        await prisma.order.update({
           where: { id: orderId },
-          data: { status: "IN_PROGRESS" },
+          data: { status: "IN_PROGRESS" }
         });
-        return NextResponse.json({ success: true, order: acceptedOrder });
+        return NextResponse.json({ success: true, message: "Buyurtma qabul qilindi" });
 
-      case "SUBMIT": // Master submits work
-
-        if (order.status !== "IN_PROGRESS") throw new Error("Invalid order status for submission");
-        if (order.master.firebaseUid !== userId) throw new Error("Only master can submit work");
-
-        const submittedOrder = await prisma.order.update({
+      case "SUBMIT":
+        if (order.status !== "IN_PROGRESS") throw new Error("Buyurtma jarayonda emas");
+        if (!isMaster) throw new Error("Faqat usta ishni topshirishi mumkin");
+        
+        await prisma.order.update({
           where: { id: orderId },
-          data: { status: "ON_REVIEW" },
+          data: { status: "ON_REVIEW" }
         });
-        return NextResponse.json({ success: true, order: submittedOrder });
+        
+        // TODO: Trigger chat system message here
+        return NextResponse.json({ success: true, message: "Ish tekshiruvga yuborildi" });
 
-      case "CONFIRM": // Client confirms work
-        if (order.status !== "ON_REVIEW") throw new Error("Order must be under review to confirm");
-        if (order.client.firebaseUid !== userId) throw new Error("Only client can confirm work");
+      case "CONFIRM":
+        if (order.status !== "ON_REVIEW") throw new Error("Buyurtma tekshiruvda emas");
+        if (!isClient) throw new Error("Faqat mijoz ishni tasdiqlashi mumkin");
 
-        const result = await prisma.$transaction(async (tx) => {
-          if (!order.escrow) throw new Error("Escrow data missing");
+        const txResult = await prisma.$transaction(async (tx) => {
+          if (!order.escrow) throw new Error("Escrow topilmadi");
 
-          const totalAmount = order.escrow.amountFrozen;
-          const commission = totalAmount * order.escrow.commissionRate;
-          const masterShare = totalAmount - commission;
+          const total = order.escrow.amountFrozen;
+          const commission = total * order.escrow.commissionRate; // Platform 10%
+          const masterNet = total - commission; // Master 90%
 
-          // 1. Update Order Status
+          // 1. Update statuses
           await tx.order.update({
             where: { id: orderId },
-            data: { status: "COMPLETED" },
+            data: { status: "COMPLETED" }
           });
-
-          // 2. Update Master Balance (+90%)
-          await tx.user.update({
-            where: { id: order.masterId },
-            data: { balance: { increment: masterShare } },
-          });
-
-          // 3. Update Escrow Status
           await tx.escrow.update({
             where: { id: order.escrow.id },
-            data: { status: "RELEASED" },
+            data: { status: "RELEASED" }
           });
 
-          // 4. Record Transitions
-          await tx.transaction.createMany({
-            data: [
-              {
-                userId: order.masterId,
-                orderId: order.id,
-                amount: masterShare,
-                type: "RELEASED",
-                description: `Оплата за заказ: ${order.title}`,
-              },
-              {
-                userId: order.clientId, // Logic can vary, usually platform takes it, but we log it under the order
-                orderId: order.id,
-                amount: commission,
-                type: "SERVICE_FEE",
-                description: `Комиссия системы (10%) за заказ: ${order.title}`,
-              }
-            ],
+          // 2. Transfer money to Master
+          await tx.user.update({
+            where: { id: order.masterId },
+            data: { balance: { increment: masterNet } }
+          });
+
+          // 3. Record Transactions
+          await tx.transaction.create({
+            data: {
+              userId: order.masterId,
+              orderId: order.id,
+              amount: masterNet,
+              type: "RELEASED",
+              description: `Bajarilgan ish uchun to'lov (10% komissiya yechildi): ${order.title}`
+            }
           });
 
           return { success: true };
         });
-        return NextResponse.json(result);
+        return NextResponse.json(txResult);
 
       case "DISPUTE":
-         if (order.client.firebaseUid !== userId) throw new Error("Only client can open dispute");
-         await prisma.order.update({
-             where: { id: orderId },
-             data: { status: "UNDER_ARBITRATION" }
-         });
-         return NextResponse.json({ success: true });
+        if (order.status !== "ON_REVIEW") throw new Error("Faqat tekshiruv vaqtida shikoyat qilish mumkin");
+        if (!isClient) throw new Error("Faqat mijoz shikoyat qila oladi");
+
+        await prisma.order.update({
+          where: { id: orderId },
+          data: { status: "UNDER_ARBITRATION" }
+        });
+        return NextResponse.json({ success: true, message: "Arbitraj boshlandi" });
 
       default:
-        return NextResponse.json({ error: "Invalid action" }, { status: 400 });
+        return NextResponse.json({ error: "Noto'g'ri amal" }, { status: 400 });
     }
   } catch (error: any) {
-    console.error("Action error:", error);
-    return NextResponse.json({ error: error.message || "Internal Server Error" }, { status: 500 });
+    console.error("Action Error:", error);
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
