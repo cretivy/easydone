@@ -108,3 +108,34 @@ model Transaction {
   description String?
   createdAt   DateTime        @default(now())
 }
+
+model JobPost {
+  id          String      @id @default(cuid())
+  title       String
+  description String
+  category    String
+  budget      Float
+  deadline    Int         // kunlar soni
+  status      String      @default("OPEN") // OPEN, CLOSED
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  clientId    String
+  client      User        @relation(fields: [clientId], references: [id])
+  offers      JobOffer[]
+}
+
+model JobOffer {
+  id          String      @id @default(cuid())
+  price       Float
+  days        Int
+  message     String
+  createdAt   DateTime    @default(now())
+
+  jobId       String
+  job         JobPost     @relation(fields: [jobId], references: [id])
+  
+  masterId    String
+  master      User        @relation(fields: [masterId], references: [id])
+}
+
