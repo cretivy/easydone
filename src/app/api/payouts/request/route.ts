@@ -40,10 +40,10 @@ export async function POST(req: Request) {
           userId: master.id,
           amount,
           type: "WITHDRAWAL",
-          status: "PENDING",
           description: `Запрос на вывод средств на карту: ${cardDetails}`,
         },
       });
+
 
       return payout;
     });
